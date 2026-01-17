@@ -973,7 +973,7 @@ const handleGetUserProfile = async (req, res, next) => {
   }
 };
 
-// GET USERS
+// GET BUYERS
 // METHOD: GET
 // ENDPOINT: /api/get-users
 const handleGetBuyers = async (req, res, next) => {
@@ -1061,6 +1061,96 @@ const handleGetBuyers = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET SELLERS
+// METHOD: GET
+// ENDPOINT: /api/get-sellers
+const handleGetSellers = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const search = req.query.search || {};
+    const matchStage = SearchQuery(search);
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "subscriptions",
+          localField: "_id",
+          foreignField: "userId",
+          as: "subscription",
+        },
+      },
+      {
+        $unwind: {
+          path: "$subscription",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      {
+        $lookup: {
+          from: "plans",
+          localField: "subscription.planId",
+          foreignField: "_id",
+          as: "plan",
+        },
+      },
+
+      {
+        $unwind: {
+          path: "$plan",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          phone: 1,
+          address: 1,
+          profilePicture: 1,
+          createdAt: 1,
+          subscription: 1,
+          plan: 1,
+        },
+      },
+    ];
+
+    if (matchStage) pipeline.push(matchStage);
+    pipeline.push({ $sort: { createdAt: -1 } });
+
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    const users = await SellerModel.aggregate(pipeline);
+
+    const countPipeline = [];
+    if (matchStage) countPipeline.push(matchStage);
+    countPipeline.push({ $count: "totalItems" });
+
+    const countResult = await SellerModel.aggregate(countPipeline);
+    const totalItems = countResult.length > 0 ? countResult[0].totalItems : 0;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    res.status(200).json({
+      users,
+      meta: {
+        totalItems,
+        totalPages,
+        page,
+        limit,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
 
 // UPDATE PASSWORD
 // METHOD : PATCH
@@ -1168,6 +1258,7 @@ export {
   changePassword,
   HandleUpdateProfile,
   handleGetUserProfile,
+  handleGetSellers,
   handleGetBuyers,
   handleUpdatePassword,
   handleUpdateTimezone,
