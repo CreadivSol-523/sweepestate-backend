@@ -13,7 +13,8 @@ import {
   handleUpdatePassword,
   handleUpdateTimezone,
   handleDeleteAccount,
-  handleRegisterBuyer
+  handleRegisterBuyer,
+  handleRegisterSeller
 } from "../controllers/AuthController.js";
 import validate from "../middlewares/ValidationHandler.js";
 import {
@@ -35,6 +36,12 @@ router.post(
   "/buyer-register",
   CreateUploadMiddleware([{ name: "profilePicture", isMultiple: false }]),
   handleRegisterBuyer
+);
+
+router.post(
+  "/seller-register",
+  CreateUploadMiddleware([{ name: "profilePicture", isMultiple: false }]),
+  handleRegisterSeller
 );
 
 router.post(

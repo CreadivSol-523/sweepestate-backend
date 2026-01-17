@@ -11,6 +11,7 @@ import PlanModel from "../models/PlanScheme.js";
 import SearchQuery from "../utils/SearchQuery.js";
 import ExtractRelativeFilePath from "../middlewares/ExtractRelativePath.js";
 import expressAsyncHandler from "express-async-handler";
+import SellerModel from "../models/SellerSchema.js";
 
 // REGISTER
 // METHOD : POST
@@ -64,12 +65,12 @@ const register = async (req, res, next) => {
 
 // REGISTER
 // METHOD : POST
-// ENDPOINT: /api/user-register
+// ENDPOINT: /api/buyer-register
 const handleRegisterBuyer = async (req, res, next) => {
   try {
 
     const {
-      neme,
+      name,
       email,
       phone,
       address,
@@ -90,7 +91,9 @@ const handleRegisterBuyer = async (req, res, next) => {
     const extractPath = ExtractRelativeFilePath(profilePicture);
 
     const existingBuyer = await BuyerModel.findOne({
-      $or: [{ neme }, { email }],
+      $or: [{ name }, { email }],
+    }) || await SellerModel.findOne({
+      $or: [{ name }, { email }],
     })
 
     if (existingBuyer) {
@@ -100,7 +103,7 @@ const handleRegisterBuyer = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newBuyer = new BuyerModel({
-      neme,
+      name,
       email,
       phone,
       address,
@@ -110,7 +113,6 @@ const handleRegisterBuyer = async (req, res, next) => {
       password: hashedPassword,
     });
     await newBuyer.save();
-
 
     const accessToken = generateAccessToken(newBuyer);
     const refreshToken = generateRefreshToken(newBuyer);
@@ -161,6 +163,117 @@ const handleRegisterBuyer = async (req, res, next) => {
       creditScore: newBuyer.creditScore,
       address: newBuyer.address,
       role: newBuyer.role,
+      subscribedPlan,
+    };
+
+    res.status(201).json({
+      message: "User registered successfully",
+      accessToken,
+      refreshToken,
+      user: userDetails,
+    });
+
+  } catch (error) {
+    console.log(error)
+    next(error)
+  }
+}
+
+// REGISTER
+// METHOD : POST
+// ENDPOINT: /api/seller-register
+const handleRegisterSeller = async (req, res, next) => {
+  try {
+
+    const {
+      name,
+      email,
+      phone,
+      address,
+      password,
+      fcmToken,
+      deviceType,
+      deviceName
+    } = req.body;
+
+    const profilePicture = req?.files?.profilePicture?.[0];
+
+    if (!profilePicture) {
+      return res.status(400).json({ message: "profile picture File is required!" });
+    }
+
+    const extractPath = ExtractRelativeFilePath(profilePicture);
+
+    const existingSeller = await BuyerModel.findOne({
+      $or: [{ name }, { email }],
+    }) || await BuyerModel.findOne({
+      $or: [{ name }, { email }],
+    })
+
+    if (existingSeller) {
+      return res.status(400).json({ message: "This email or username already exists" })
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newSeller = new SellerModel({
+      name,
+      email,
+      phone,
+      address,
+      profilePicture: extractPath,
+      password: hashedPassword,
+    });
+    await newSeller.save();
+
+
+    const accessToken = generateAccessToken(newSeller);
+    const refreshToken = generateRefreshToken(newSeller);
+
+    newSeller.sessions = [
+      {
+        fcmToken,
+        refreshToken,
+        deviceType: deviceType || "web",
+        deviceName: deviceName || req.headers["user-agent"],
+        createdAt: new Date(),
+      },
+    ];
+
+    const customerId = await stripe.customers.create({
+      email: email,
+      name: newSeller.name,
+      metadata: { userId: newSeller._id.toString() },
+    });
+
+    newSeller.customerId = customerId.id;
+    await newSeller.save();
+
+    const findSubscription = await SubscriptionModel.findOne({
+      userId: newSeller._id,
+    });
+
+    let subscribedPlan;
+    if (findSubscription) {
+      const findPlan = await PlanModel.findOne({
+        _id: findSubscription.planId,
+      });
+      subscribedPlan = {
+        subscription: findSubscription,
+        plan: findPlan,
+      };
+    } else {
+      subscribedPlan = null;
+    }
+
+    const userDetails = {
+      _id: newSeller._id,
+      name: newSeller.name,
+      email: newSeller.email,
+      phone: newSeller.phone,
+      profilePicture: newSeller.profilePicture,
+      address: newSeller.address,
+      role: newSeller.role,
       subscribedPlan,
     };
 
@@ -905,6 +1018,7 @@ const handleDeleteAccount = async (req, res, next) => {
 export {
   register,
   handleRegisterBuyer,
+  handleRegisterSeller,
   login,
   logout,
   refreshToken,
