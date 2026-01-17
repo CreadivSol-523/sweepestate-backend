@@ -1151,7 +1151,6 @@ const handleGetSellers = async (req, res, next) => {
   }
 };
 
-
 // UPDATE PASSWORD
 // METHOD : PATCH
 // ENDPOINT: /api/id/update-password
