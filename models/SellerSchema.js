@@ -42,8 +42,8 @@ const SellerSchema = new Schema(
     password: String,
     role: {
       type: String,
-      enum: ["Buyer"],
-      default: "Buyer",
+      enum: ["Seller"],
+      default: "Seller",
     },
     sessions: [SessionSchema],
     otp: {

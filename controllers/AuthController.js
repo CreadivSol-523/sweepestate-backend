@@ -303,6 +303,8 @@ const login = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { username: identifier }],
+      })) || (await SellerModel.findOne({
+        $or: [{ email: identifier }, { username: identifier }],
       }));
 
     if (!user) {
@@ -376,6 +378,50 @@ const login = async (req, res, next) => {
         role: user.role,
         subscribedPlan: subscribedPlan,
       };
+    } else if (user.role.includes("Seller")) {
+
+      if (!user.sessions) user.sessions = [];
+      const sessionData = {
+        refreshToken,
+        fcmToken: fcmToken || null,
+        deviceType: deviceType || "web",
+        deviceName: deviceName || "web",
+        createdAt: new Date(),
+      };
+      user.sessions.push(sessionData);
+
+      // user.refreshToken = refreshToken;
+      await user.save();
+
+      const findSubscription = await SubscriptionModel.findOne({
+        userId: user._id,
+      });
+
+      let subscribedPlan;
+      if (findSubscription) {
+        const findPlan = await PlanModel.findOne({
+          _id: findSubscription.planId,
+        });
+        subscribedPlan = {
+          subscription: findSubscription,
+          plan: findPlan,
+        };
+      } else {
+        subscribedPlan = null;
+      }
+
+      details = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        profilePicture: user.profilePicture,
+        selectedIncome: user.selectedIncome,
+        creditScore: user.creditScore,
+        address: user.address,
+        role: user.role,
+        subscribedPlan: subscribedPlan,
+      };
     }
 
     res.status(200).json({
@@ -403,32 +449,43 @@ const refreshToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    const user = (await AdminModel.findById(decoded.id)) || (await BuyerModel.findById(decoded.id));
+    const user = (await AdminModel.findById(decoded.id)) || (await BuyerModel.findById(decoded.id)) || (await SellerModel.findById(decoded.id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     if (user.role === "Admin") {
+
       if (user.refreshToken === token) {
         const accessToken = generateAccessToken(user);
         return res.status(200).json({ accessToken });
       } else {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
-    } else if (user.role === "User") {
-      // ✅ Check if token exists in any session
+
+    } else if (user.role === "Buyer") {
+
       const session = user.sessions.find((s) => s.refreshToken === token);
       if (!session) {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
       const accessToken = generateAccessToken(user);
       return res.status(200).json({ accessToken });
+
+    } else if (user.role === "Seller") {
+
+      const session = user.sessions.find((s) => s.refreshToken === token);
+      if (!session) {
+        return res.status(403).json({ message: "Invalid refresh token" });
+      }
+      const accessToken = generateAccessToken(user);
+      return res.status(200).json({ accessToken });
+
     } else {
       res.status(400).json({ message: "Invalid Request" });
     }
   } catch (err) {
-    // res.status(403).json({ message: "Invalid refresh token" });
     next(err);
   }
 };
@@ -446,7 +503,7 @@ const logout = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    const user = (await AdminModel.findById(decoded.id)) || (await BuyerModel.findById(decoded.id));
+    const user = (await AdminModel.findById(decoded.id)) || (await BuyerModel.findById(decoded.id)) || (await SellerModel.findById(decoded.id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -455,7 +512,11 @@ const logout = async (req, res, next) => {
       user.refreshToken = "";
       await user.save();
       return res.status(200).json({ message: "Logged out successfully" });
-    } else if (user.role === "User") {
+    } else if (user.role === "Buyer") {
+      user.sessions = user.sessions.filter((s) => s.refreshToken !== token);
+      await user.save();
+      return res.status(200).json({ message: "Logged out successfully" });
+    } else if (user.role === "Seller") {
       user.sessions = user.sessions.filter((s) => s.refreshToken !== token);
       await user.save();
       return res.status(200).json({ message: "Logged out successfully" });
@@ -479,6 +540,8 @@ const forgetPassword = async (req, res, next) => {
         $or: [{ email: identifier }, { username: identifier }],
       })) ||
       (await BuyerModel.findOne({
+        $or: [{ email: identifier }, { username: identifier }],
+      })) || (await SellerModel.findOne({
         $or: [{ email: identifier }, { username: identifier }],
       }));
 
@@ -516,6 +579,8 @@ const verifyOtp = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { username: identifier }],
+      })) || (await SellerModel.findOne({
+        $or: [{ email: identifier }, { username: identifier }],
       }));
 
     if (!user) {
@@ -548,6 +613,8 @@ const changePassword = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { username: identifier }],
+      })) || (await SellerModel.findOne({
+        $or: [{ email: identifier }, { username: identifier }],
       }));
 
     if (!user) {
@@ -579,7 +646,7 @@ const HandleUpdateProfile = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const user = (await AdminModel.findById(id)) || (await BuyerModel.findById(id));
+    const user = (await AdminModel.findById(id)) || (await BuyerModel.findById(id)) || (await SellerModel.findById(id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -626,36 +693,30 @@ const HandleUpdateProfile = async (req, res, next) => {
 
       return res.status(200).json({ message: "Profile Updated Successfully", user: details });
 
-    } else if (user.role === "User") {
+    } else if (user.role === "Buyer") {
 
-      // helper to clean multipart/form-data values
       const clean = (v) =>
         typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 
       // sanitize inputs
-      const username = clean(req.body.username);
+      const name = clean(req.body.name);
+      const phone = clean(req.body.phone);
       const email = clean(req.body.email);
-      const idCardNumber = clean(req.body.idCardNumber);
-      const medicareNumber = clean(req.body.medicareNumber);
-      const dob = clean(req.body.dob);
       const address = clean(req.body.address);
-      const gender = clean(req.body.gender);
-      const bloodGroup = clean(req.body.bloodGroup);
-      const pastInjury = clean(req.body.pastInjury);
-      const pastOperation = clean(req.body.pastOperation);
-      const medicines = clean(req.body.medicines);
-      const healthNote = clean(req.body.healthNote);
       const password = clean(req.body.password);
+      const selectedIncome = clean(req.body.selectedIncome);
+      const creditScore = clean(req.body.creditScore);
 
-      const medicareFile = req?.files?.medicareFile?.[0];
       const profilePicture = req?.files?.profilePicture?.[0];
 
       // build $or ONLY if values exist
       const userOrConditions = [];
-      if (username) userOrConditions.push({ username });
+      if (name) userOrConditions.push({ name });
       if (email) userOrConditions.push({ email });
-      if (idCardNumber) userOrConditions.push({ idCardNumber });
-      if (medicareNumber) userOrConditions.push({ medicareNumber });
+      if (phone) userOrConditions.push({ phone });
+      if (address) userOrConditions.push({ address });
+      if (selectedIncome) userOrConditions.push({ selectedIncome });
+      if (creditScore) userOrConditions.push({ creditScore });
 
       let existingUser = null;
 
@@ -668,37 +729,30 @@ const HandleUpdateProfile = async (req, res, next) => {
           (await AdminModel.findOne({
             _id: { $ne: id },
             $or: userOrConditions,
+          })) || (await SellerModel.findOne({
+            _id: { $ne: id },
+            $or: userOrConditions,
           }));
       }
 
       if (existingUser) {
         return res.status(400).json({
-          message: "Username or email already taken",
+          message: "name or email already taken",
         });
       }
 
       // file updates
-      if (medicareFile) {
-        user.medicare = ExtractRelativeFilePath(medicareFile);
-      }
-
       if (profilePicture) {
         user.profilePicture = ExtractRelativeFilePath(profilePicture);
       }
 
       // field updates
-      if (username) user.username = username;
+      if (name) user.name = name;
       if (email) user.email = email;
-      if (idCardNumber) user.idCardNumber = idCardNumber;
-      if (medicareNumber) user.medicareNumber = medicareNumber;
-      if (dob) user.dob = dob;
       if (address) user.address = address;
-      if (gender) user.gender = gender;
-      if (bloodGroup) user.bloodGroup = bloodGroup;
-      if (pastInjury) user.pastInjury = pastInjury;
-      if (pastOperation) user.pastOperation = pastOperation;
-      if (medicines) user.medicines = medicines;
-      if (healthNote) user.healthNote = healthNote;
+      if (phone) user.phone = phone;
+      if (selectedIncome) user.selectedIncome = selectedIncome;
+      if (creditScore) user.creditScore = creditScore;
 
       if (password) {
         user.password = await bcrypt.hash(password, 10);
@@ -726,21 +780,104 @@ const HandleUpdateProfile = async (req, res, next) => {
 
       const details = {
         _id: user._id,
-        username: user.username,
+        name: user.name,
         email: user.email,
-        idCardNumber: user.idCardNumber,
-        medicareNumber: user.medicareNumber,
-        medicare: user.medicare,
-        profilePicture: user.profilePicture,
-        dob: user.dob,
+        phone: user.phone,
+        selectedIncome: user.selectedIncome,
+        creditScore: user.creditScore,
         address: user.address,
-        gender: user.gender,
-        bloodGroup: user.bloodGroup,
-        pastInjury: user.pastInjury,
-        pastOperation: user.pastOperation,
-        medicines: user.medicines,
-        healthNote: user.healthNote,
-        createdAt: user.createdAt,
+        subscribedPlan,
+      };
+
+      return res.status(200).json({
+        message: "Profile Updated Successfully",
+        user: details,
+      });
+    } else if (user.role === "Seller") {
+
+      const clean = (v) =>
+        typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+
+      // sanitize inputs
+      const name = clean(req.body.name);
+      const phone = clean(req.body.phone);
+      const email = clean(req.body.email);
+      const address = clean(req.body.address);
+      const password = clean(req.body.password);
+
+      const profilePicture = req?.files?.profilePicture?.[0];
+
+      // build $or ONLY if values exist
+      const userOrConditions = [];
+      if (name) userOrConditions.push({ name });
+      if (email) userOrConditions.push({ email });
+      if (phone) userOrConditions.push({ phone });
+      if (address) userOrConditions.push({ address });
+
+      let existingUser = null;
+
+      if (userOrConditions.length > 0) {
+        existingUser =
+          (await BuyerModel.findOne({
+            _id: { $ne: id },
+            $or: userOrConditions,
+          })) ||
+          (await AdminModel.findOne({
+            _id: { $ne: id },
+            $or: userOrConditions,
+          })) || (await SellerModel.findOne({
+            _id: { $ne: id },
+            $or: userOrConditions,
+          }));
+      }
+
+      if (existingUser) {
+        return res.status(400).json({
+          message: "name or email already taken",
+        });
+      }
+
+      // file updates
+      if (profilePicture) {
+        user.profilePicture = ExtractRelativeFilePath(profilePicture);
+      }
+
+      // field updates
+      if (name) user.name = name;
+      if (email) user.email = email;
+      if (address) user.address = address;
+      if (phone) user.phone = phone;
+
+      if (password) {
+        user.password = await bcrypt.hash(password, 10);
+      }
+
+      await user.save();
+
+      // subscription info
+      const findSubscription = await SubscriptionModel.findOne({
+        userId: user._id,
+      });
+
+      let subscribedPlan = null;
+
+      if (findSubscription) {
+        const findPlan = await PlanModel.findOne({
+          _id: findSubscription.planId,
+        });
+
+        subscribedPlan = {
+          subscription: findSubscription,
+          plan: findPlan,
+        };
+      }
+
+      const details = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
         subscribedPlan,
       };
 
@@ -763,13 +900,42 @@ const HandleUpdateProfile = async (req, res, next) => {
 const handleGetUserProfile = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const findUser = (await BuyerModel.findById(id).select("-sessions -password -otp -otpExpire")) || (await AdminModel.findById(id).select("-password -otp -otpExpire -refreshToken"));
-
+    const findUser = (await BuyerModel.findById(id).select("-sessions -password -otp -otpExpire")) || (await AdminModel.findById(id).select("-password -otp -otpExpire -refreshToken")) || (await SellerModel.findById(id).select("-password -otp -otpExpire -refreshToken"));
     if (!findUser) {
       return res.status(404).json({ message: "User Not Found" });
     }
 
-    if (findUser.role === "User") {
+    if (findUser.role === "Buyer") {
+
+      const findSubscription = await SubscriptionModel.findOne({
+        userId: findUser._id,
+      });
+      let subscribedPlan;
+      if (findSubscription) {
+        const findPlan = await PlanModel.findOne({
+          _id: findSubscription.planId,
+        });
+        subscribedPlan = {
+          subscription: findSubscription,
+          plan: findPlan,
+        };
+      } else {
+        subscribedPlan = null;
+      }
+      const details = {
+        _id: findUser._id,
+        name: findUser.name,
+        email: findUser.email,
+        phone: findUser.phone,
+        address: findUser.address,
+        selectedIncome: findUser.selectedIncome,
+        creditScore: findUser.creditScore,
+        profilePicture: findUser.profilePicture,
+        role: findUser.role,
+        subscribedPlan,
+      };
+      return res.status(200).json({ user: details });
+    } else if (findUser.role === "Seller") {
       const findSubscription = await SubscriptionModel.findOne({
         userId: findUser._id,
       });
@@ -789,29 +955,16 @@ const handleGetUserProfile = async (req, res, next) => {
 
       const details = {
         _id: findUser._id,
-        username: findUser.username,
+        name: findUser.name,
         email: findUser.email,
-        idCardNumber: findUser.idCardNumber,
-        contactNumber: findUser.contactNumber,
-        medicare: findUser.medicare,
-        profilePicture: findUser.profilePicture,
-        medicareNumber: findUser.medicareNumber,
-        dob: findUser.dob,
+        phone: findUser.phone,
         address: findUser.address,
-        gender: findUser.gender,
-        bloodGroup: findUser.bloodGroup,
-        pastInjury: findUser.pastInjury,
-        pastOperation: findUser.pastOperation,
-        medicines: findUser.medicines,
-        healthNote: findUser.healthNote,
-        createdAt: findUser.createdAt,
-        medicare: findUser.medicare,
         profilePicture: findUser.profilePicture,
         role: findUser.role,
         subscribedPlan,
       };
-
       return res.status(200).json({ user: details });
+
     } else if (findUser.role === "Admin") {
       return res.status(200).json({ user: findUser });
     }
@@ -823,7 +976,7 @@ const handleGetUserProfile = async (req, res, next) => {
 // GET USERS
 // METHOD: GET
 // ENDPOINT: /api/get-users
-const handleGetUsers = async (req, res, next) => {
+const handleGetBuyers = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -866,22 +1019,11 @@ const handleGetUsers = async (req, res, next) => {
       {
         $project: {
           _id: 1,
-          username: 1,
+          name: 1,
           email: 1,
-          username: 1,
-          email: 1,
-          idCardNumber: 1,
-          medicareNumber: 1,
-          contactNumber: 1,
-          medicare: 1,
-          dob: 1,
+          phone: 1,
           address: 1,
-          gender: 1,
-          bloodGroup: 1,
-          pastInjury: 1,
-          pastOperation: 1,
-          medicines: 1,
-          healthNote: 1,
+          profilePicture: 1,
           createdAt: 1,
           subscription: 1,
           plan: 1,
@@ -920,8 +1062,6 @@ const handleGetUsers = async (req, res, next) => {
   }
 };
 
-
-
 // UPDATE PASSWORD
 // METHOD : PATCH
 // ENDPOINT: /api/id/update-password
@@ -929,7 +1069,7 @@ const handleUpdatePassword = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { password, newPass } = req.body;
-    const user = await BuyerModel.findById(id);
+    const user = await BuyerModel.findById(id) || await SellerModel.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User Not Found" });
     }
@@ -961,7 +1101,7 @@ const handleUpdateTimezone = async (req, res, next) => {
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    const user = await BuyerModel.findById(decoded.id);
+    const user = await BuyerModel.findById(decoded.id) || await SellerModel.findById(decoded.id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -981,7 +1121,6 @@ const handleUpdateTimezone = async (req, res, next) => {
   }
 };
 
-
 // DELETE USER
 // METHOD : PATCH
 // ENDPOINT: /api/:userId/delete-account
@@ -994,6 +1133,8 @@ const handleDeleteAccount = async (req, res, next) => {
     }
 
     const user = await BuyerModel.findOneAndDelete(
+      { _id: userId }
+    ) || await SellerModel.findOneAndDelete(
       { _id: userId }
     );
 
@@ -1027,7 +1168,7 @@ export {
   changePassword,
   HandleUpdateProfile,
   handleGetUserProfile,
-  handleGetUsers,
+  handleGetBuyers,
   handleUpdatePassword,
   handleUpdateTimezone,
   handleDeleteAccount

@@ -9,12 +9,12 @@ import {
   changePassword,
   HandleUpdateProfile,
   handleGetUserProfile,
-  handleGetUsers,
   handleUpdatePassword,
   handleUpdateTimezone,
   handleDeleteAccount,
   handleRegisterBuyer,
-  handleRegisterSeller
+  handleRegisterSeller,
+  handleGetBuyers
 } from "../controllers/AuthController.js";
 import validate from "../middlewares/ValidationHandler.js";
 import {
@@ -66,7 +66,7 @@ router.patch("/update-user/:id",
   CreateUploadMiddleware([{ name: "medicareFile", isMultiple: false }, { name: "profilePicture", isMultiple: false }]),
   HandleUpdateProfile);
 
-router.get("/get-users", handleGetUsers);
+router.get("/get-users", handleGetBuyers);
 
 router.patch("/:id/update-password", handleUpdatePassword);
 
