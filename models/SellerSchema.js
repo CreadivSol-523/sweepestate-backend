@@ -64,4 +64,5 @@ const SellerSchema = new Schema(
   }
 );
 const SellerModel = mongoose.model("sellers", SellerSchema);
+
 export default SellerModel;

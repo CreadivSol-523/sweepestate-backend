@@ -22,6 +22,8 @@ import ngrok from "ngrok";
 import AuthRoutes from "./routes/AuthRoutes.js";
 import PlanRoutes from "./routes/PlanRoutes.js";
 import SubscripitonRoutes from "./routes/SubscripitonRoutes.js";
+import ApartmentRoutes from "./routes/ApartmentRoutes.js";
+import MatchRoutes from "./routes/MatchRoutes.js";
 import WebhookRoutes from "./routes/WebhookRoutes.js";
 
 import { allowedOrigins } from "./utils/AllowedOrigins.js";
@@ -110,6 +112,8 @@ app.get("/", (req, res) => {
 app.use("/api", AuthRoutes);
 app.use("/api/plans", PlanRoutes);
 app.use("/api/subscriptions", SubscripitonRoutes);
+app.use("/api/apartments", ApartmentRoutes);
+app.use("/api/matches", MatchRoutes);
 
 // === Error Handler
 

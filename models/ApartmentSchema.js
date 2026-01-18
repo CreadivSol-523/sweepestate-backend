@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const ApartmentSchema = new Schema({
+    sellerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "sellers"
+    },
     title: {
         type: String,
         required: true,
@@ -63,7 +67,11 @@ const ApartmentSchema = new Schema({
         enum: ["Available", "Sold", "Rented"],
         default: "Available",
     },
-    images: {
+    image: {
+        type: String,
+        default: '',
+    },
+    featuredImages: {
         type: [String],
         default: [],
     },
@@ -78,5 +86,5 @@ const ApartmentSchema = new Schema({
 }, {
     timestamps: true,
 });
-const AppartmentModel = mongoose.model("appartments", ApartmentSchema);
-export default AppartmentModel;
+const ApartmentModel = mongoose.model("appartments", ApartmentSchema);
+export default ApartmentModel;
