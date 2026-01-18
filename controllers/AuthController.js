@@ -90,7 +90,9 @@ const handleRegisterBuyer = async (req, res, next) => {
 
     const extractPath = ExtractRelativeFilePath(profilePicture);
 
-    const existingBuyer = await BuyerModel.findOne({
+    const existingBuyer = await AdminModel.findOne({
+      $or: [{ username: name }, { email }],
+    }) || await BuyerModel.findOne({
       $or: [{ name }, { email }],
     }) || await SellerModel.findOne({
       $or: [{ name }, { email }],
@@ -204,7 +206,9 @@ const handleRegisterSeller = async (req, res, next) => {
 
     const extractPath = ExtractRelativeFilePath(profilePicture);
 
-    const existingSeller = await BuyerModel.findOne({
+    const existingSeller = await AdminModel.findOne({
+      $or: [{ username: name }, { email }],
+    }) || await BuyerModel.findOne({
       $or: [{ name }, { email }],
     }) || await BuyerModel.findOne({
       $or: [{ name }, { email }],
@@ -296,16 +300,16 @@ const handleRegisterSeller = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const { identifier, password, fcmToken, deviceType, deviceName } = req.body;
-
     const user =
       (await AdminModel.findOne({
         $or: [{ email: identifier }, { username: identifier }],
       })) ||
       (await BuyerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       })) || (await SellerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       }));
+
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -416,8 +420,6 @@ const login = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         profilePicture: user.profilePicture,
-        selectedIncome: user.selectedIncome,
-        creditScore: user.creditScore,
         address: user.address,
         role: user.role,
         subscribedPlan: subscribedPlan,
@@ -540,9 +542,9 @@ const forgetPassword = async (req, res, next) => {
         $or: [{ email: identifier }, { username: identifier }],
       })) ||
       (await BuyerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       })) || (await SellerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       }));
 
     if (!user) {
@@ -578,9 +580,9 @@ const verifyOtp = async (req, res, next) => {
         $or: [{ email: identifier }, { username: identifier }],
       })) ||
       (await BuyerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       })) || (await SellerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       }));
 
     if (!user) {
@@ -612,9 +614,9 @@ const changePassword = async (req, res, next) => {
         $or: [{ email: identifier }, { username: identifier }],
       })) ||
       (await BuyerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       })) || (await SellerModel.findOne({
-        $or: [{ email: identifier }, { username: identifier }],
+        $or: [{ email: identifier }, { name: identifier }],
       }));
 
     if (!user) {
@@ -786,6 +788,8 @@ const HandleUpdateProfile = async (req, res, next) => {
         selectedIncome: user.selectedIncome,
         creditScore: user.creditScore,
         address: user.address,
+        profilePicture: user.profilePicture,
+        role: user.role,
         subscribedPlan,
       };
 
@@ -878,6 +882,7 @@ const HandleUpdateProfile = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         address: user.address,
+        profilePicture: user.profilePicture,
         subscribedPlan,
       };
 
