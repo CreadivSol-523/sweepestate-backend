@@ -48,7 +48,11 @@ const SubscriptionSchema = new Schema(
     downgradeScheduled: {
       type: Boolean,
       default: false
-    }
+    },
+    planRestrictions: {
+      type: Schema.Types.Mixed, // Allows dynamic fields
+      default: {}
+    },
 
   },
   {

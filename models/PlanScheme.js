@@ -11,7 +11,12 @@ const PlanScheme = new Schema(
     amount: { type: Number, required: true },
     currency: { type: String, default: "usd" },
     interval: { type: String, default: "year" },
-    active: { type: Boolean, default: true }
+    active: { type: Boolean, default: true },
+    planRestrictions: {
+      type: Schema.Types.Mixed,
+      default: {}
+    }
+
   },
   {
     timestamps: true

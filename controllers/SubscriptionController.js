@@ -141,7 +141,8 @@ export const handleCreateSubscription = async (req, res) => {
         stripeSubscriptionId: null,
         stripeCustomerId: findUser.customerId || null,
         startDate: new Date(),
-        currentPeriodEnd: null // free plan does not expire
+        currentPeriodEnd: null, // free plan does not expire
+        planRestrictions: findPlan.planRestrictions,
       });
 
       let subscribedPlan;
@@ -149,7 +150,7 @@ export const handleCreateSubscription = async (req, res) => {
         subscription: subscription,
         plan: findPlan,
       }
-  
+
       return res.status(200).json({
         success: true,
         message: "Subscription created successfully",
@@ -219,6 +220,7 @@ export const handleCreateSubscription = async (req, res) => {
       stripeSubscriptionId: subscription.id,
       stripeCustomerId: findUser.customerId,
       status: subscription.status,
+      planRestrictions: findPlan.planRestrictions,
       startDate: subscription.start_date
         ? new Date(subscription.start_date * 1000)
         : new Date(),
@@ -522,7 +524,8 @@ export const handleUpgradeSubscription = async (req, res, next) => {
 
       downgradeScheduled: false,
       downgradeRequestedAt: null,
-      downgradeMessage: ""
+      downgradeMessage: "",
+      planRestrictions: newPlan.planRestrictions
     });
 
     return res.status(200).json({
@@ -535,7 +538,6 @@ export const handleUpgradeSubscription = async (req, res, next) => {
     next(error);
   }
 };
-
 
 export const HandleGetPaymentIntent = async (req, res) => {
   try {
