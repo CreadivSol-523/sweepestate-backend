@@ -4,27 +4,30 @@ import BuyerModel from "../models/BuyerSchema.js";
 import MatchModel from "../models/MatchSchema.js";
 import SellerModel from "../models/SellerSchema.js";
 import SearchQuery from "../utils/SearchQuery.js";
+import SubscriptionModel from "../models/SubscriptionSchema.js";
 
 export const handleReqMatch = async (req, res, next) => {
   try {
     const { userId, propertyId } = req.params;
+
     const findBuyer = await BuyerModel.findById(userId);
-    if (!findBuyer) {
-      return res.status(404).json({ message: "Buyer Not Found" })
-    }
+    if (!findBuyer) return res.status(404).json({ message: "Buyer Not Found" });
+
     const findProperty = await ApartmentModel.findById(propertyId);
-    if (!findProperty) {
-      return res.status(404).json({ message: "Property Not Found" })
-    }
+    if (!findProperty) return res.status(404).json({ message: "Property Not Found" });
 
     const existingMatch = await MatchModel.findOne({
       propertyId,
       "matchLikedBy.buyerId": userId
     });
+    if (existingMatch) return res.status(400).json({ message: "Match already requested" });
 
-    if (existingMatch) {
-      return res.status(400).json({ message: "Match already requested" });
-    }
+    const updatedSubscription = await SubscriptionModel.findOneAndUpdate(
+      { userId, "planRestrictions.numberOfSwipes": { $gt: 0 } },
+      { $inc: { "planRestrictions.numberOfSwipes": -1 } },
+      { new: true }
+    );
+    if (!updatedSubscription) return res.status(400).json({ message: "No swipes remaining" });
 
     const createMatch = new MatchModel({
       propertyId: propertyId,
@@ -32,14 +35,16 @@ export const handleReqMatch = async (req, res, next) => {
         buyerId: userId,
         likedAt: Date.now()
       },
-    })
+    });
     await createMatch.save();
-    res.status(200).json({ message: "Match Request Sent Successfully" })
+
+    res.status(200).json({ message: "Match Request Sent Successfully" });
+
   } catch (error) {
     console.log(error);
-    next(error)
+    next(error);
   }
-}
+};
 
 export const handleGetMatches = async (req, res, next) => {
   try {
@@ -161,19 +166,35 @@ export const handleGetMatches = async (req, res, next) => {
 
 export const handleAcceptMatch = async (req, res, next) => {
   try {
-
     const { userId, matchId } = req.params;
 
+    // 1️⃣ Check if seller exists
     const findSeller = await SellerModel.findById(userId);
     if (!findSeller) {
-      return res.status(400).json({ message: "Seller not found" })
+      return res.status(400).json({ message: "Seller not found" });
     }
 
+    // 2️⃣ Find the match
     const findMatch = await MatchModel.findById(matchId);
     if (!findMatch) {
-      return res.status(404).json({ message: "Match not found" })
+      return res.status(404).json({ message: "Match not found" });
     }
 
+    // 3️⃣ Atomically decrement buyer's maxMatchPacks
+    const updatedSubscription = await SubscriptionModel.findOneAndUpdate(
+      {
+        userId: findMatch.matchLikedBy.buyerId,
+        "planRestrictions.maxMatchPacks": { $gt: 0 }
+      },
+      { $inc: { "planRestrictions.maxMatchPacks": -1 } },
+      { new: true }
+    );
+
+    if (!updatedSubscription) {
+      return res.status(400).json({ message: "This user doesn't have enough matches" });
+    }
+
+    // 4️⃣ Update match to accepted
     if (!findMatch.matchAcceptedBy) {
       findMatch.matchAcceptedBy = {};
     }
@@ -184,35 +205,51 @@ export const handleAcceptMatch = async (req, res, next) => {
 
     await findMatch.save();
 
-    res.status(200).json({ message: "Match Accepted Successfully" })
+    res.status(200).json({ message: "Match Accepted Successfully" });
 
   } catch (error) {
-    console.log(error);
-    next(error)
+    console.error(error);
+    next(error);
   }
-}
+};
 
 export const handleRejectMatch = async (req, res, next) => {
   try {
     const { userId, propertyId } = req.params;
 
+    // 1️⃣ Check buyer exists
     const buyer = await BuyerModel.findById(userId);
     if (!buyer) {
       return res.status(404).json({ message: "Buyer not found" });
     }
 
+    // 2️⃣ Check property exists
     const property = await ApartmentModel.findById(propertyId);
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Find existing match (if any)
+    // 3️⃣ Atomically decrement buyer's numberOfSwipes
+    const updatedSubscription = await SubscriptionModel.findOneAndUpdate(
+      {
+        userId,
+        "planRestrictions.numberOfSwipes": { $gt: 0 }
+      },
+      { $inc: { "planRestrictions.numberOfSwipes": -1 } },
+      { new: true }
+    );
+
+    if (!updatedSubscription) {
+      return res.status(400).json({ message: "No swipes remaining" });
+    }
+
+    // 4️⃣ Find existing match (if any)
     let match = await MatchModel.findOne({
       propertyId,
       "matchLikedBy.buyerId": userId
     });
 
-    // If no match exists → create a rejected one
+    // 5️⃣ Create or update match as rejected
     if (!match) {
       match = new MatchModel({
         propertyId,
@@ -226,11 +263,9 @@ export const handleRejectMatch = async (req, res, next) => {
         }
       });
     } else {
-      // Match exists but already rejected
       if (match.status === "Rejected") {
         return res.status(400).json({ message: "Already rejected" });
       }
-
       match.status = "Rejected";
       match.rejectedBy = {
         buyerId: userId,
@@ -246,4 +281,3 @@ export const handleRejectMatch = async (req, res, next) => {
     next(error);
   }
 };
-
