@@ -1,6 +1,10 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { generateAccessToken, generateRefreshToken, generateOTP } from "../utils/TokenGenerator.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  generateOTP,
+} from "../utils/TokenGenerator.js";
 import AdminModel from "../models/AdminSchema.js";
 import autoMailer from "../utils/AutoMailer.js";
 import mongoose from "mongoose";
@@ -24,7 +28,9 @@ const register = async (req, res, next) => {
       $or: [{ username }, { email }],
     });
     if (existingUser) {
-      return res.status(400).json({ message: "Username or email already taken" });
+      return res
+        .status(400)
+        .json({ message: "Username or email already taken" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -68,7 +74,6 @@ const register = async (req, res, next) => {
 // ENDPOINT: /api/buyer-register
 const handleRegisterBuyer = async (req, res, next) => {
   try {
-
     const {
       name,
       email,
@@ -79,27 +84,34 @@ const handleRegisterBuyer = async (req, res, next) => {
       password,
       fcmToken,
       deviceType,
-      deviceName
+      deviceName,
     } = req.body;
 
     const profilePicture = req?.files?.profilePicture?.[0];
 
     if (!profilePicture) {
-      return res.status(400).json({ message: "profile picture File is required!" });
+      return res
+        .status(400)
+        .json({ message: "profile picture File is required!" });
     }
 
     const extractPath = ExtractRelativeFilePath(profilePicture);
 
-    const existingBuyer = await AdminModel.findOne({
-      $or: [{ username: name }, { email }],
-    }) || await BuyerModel.findOne({
-      $or: [{ name }, { email }],
-    }) || await SellerModel.findOne({
-      $or: [{ name }, { email }],
-    })
+    const existingBuyer =
+      (await AdminModel.findOne({
+        $or: [{ username: name }, { email }],
+      })) ||
+      (await BuyerModel.findOne({
+        $or: [{ name }, { email }],
+      })) ||
+      (await SellerModel.findOne({
+        $or: [{ name }, { email }],
+      }));
 
     if (existingBuyer) {
-      return res.status(400).json({ message: "This email or username already exists" })
+      return res
+        .status(400)
+        .json({ message: "This email or username already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -174,19 +186,17 @@ const handleRegisterBuyer = async (req, res, next) => {
       refreshToken,
       user: userDetails,
     });
-
   } catch (error) {
-    console.log(error)
-    next(error)
+    console.log(error);
+    next(error);
   }
-}
+};
 
 // REGISTER
 // METHOD : POST
 // ENDPOINT: /api/seller-register
 const handleRegisterSeller = async (req, res, next) => {
   try {
-
     const {
       name,
       email,
@@ -195,27 +205,34 @@ const handleRegisterSeller = async (req, res, next) => {
       password,
       fcmToken,
       deviceType,
-      deviceName
+      deviceName,
     } = req.body;
 
     const profilePicture = req?.files?.profilePicture?.[0];
 
     if (!profilePicture) {
-      return res.status(400).json({ message: "profile picture File is required!" });
+      return res
+        .status(400)
+        .json({ message: "profile picture File is required!" });
     }
 
     const extractPath = ExtractRelativeFilePath(profilePicture);
 
-    const existingSeller = await AdminModel.findOne({
-      $or: [{ username: name }, { email }],
-    }) || await BuyerModel.findOne({
-      $or: [{ name }, { email }],
-    }) || await BuyerModel.findOne({
-      $or: [{ name }, { email }],
-    })
+    const existingSeller =
+      (await AdminModel.findOne({
+        $or: [{ username: name }, { email }],
+      })) ||
+      (await BuyerModel.findOne({
+        $or: [{ name }, { email }],
+      })) ||
+      (await BuyerModel.findOne({
+        $or: [{ name }, { email }],
+      }));
 
     if (existingSeller) {
-      return res.status(400).json({ message: "This email or username already exists" })
+      return res
+        .status(400)
+        .json({ message: "This email or username already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -229,7 +246,6 @@ const handleRegisterSeller = async (req, res, next) => {
       password: hashedPassword,
     });
     await newSeller.save();
-
 
     const accessToken = generateAccessToken(newSeller);
     const refreshToken = generateRefreshToken(newSeller);
@@ -287,12 +303,11 @@ const handleRegisterSeller = async (req, res, next) => {
       refreshToken,
       user: userDetails,
     });
-
   } catch (error) {
-    console.log(error)
-    next(error)
+    console.log(error);
+    next(error);
   }
-}
+};
 
 // LOGIN
 // METHOD : POST
@@ -306,10 +321,10 @@ const login = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
-      })) || (await SellerModel.findOne({
+      })) ||
+      (await SellerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
       }));
-
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -383,7 +398,6 @@ const login = async (req, res, next) => {
         subscribedPlan: subscribedPlan,
       };
     } else if (user.role.includes("Seller")) {
-
       if (!user.sessions) user.sessions = [];
       const sessionData = {
         refreshToken,
@@ -451,39 +465,36 @@ const refreshToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    const user = (await AdminModel.findById(decoded.id)) || (await BuyerModel.findById(decoded.id)) || (await SellerModel.findById(decoded.id));
+    const user =
+      (await AdminModel.findById(decoded.id)) ||
+      (await BuyerModel.findById(decoded.id)) ||
+      (await SellerModel.findById(decoded.id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     if (user.role === "Admin") {
-
       if (user.refreshToken === token) {
         const accessToken = generateAccessToken(user);
         return res.status(200).json({ accessToken });
       } else {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
-
     } else if (user.role === "Buyer") {
-
       const session = user.sessions.find((s) => s.refreshToken === token);
       if (!session) {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
       const accessToken = generateAccessToken(user);
       return res.status(200).json({ accessToken });
-
     } else if (user.role === "Seller") {
-
       const session = user.sessions.find((s) => s.refreshToken === token);
       if (!session) {
         return res.status(403).json({ message: "Invalid refresh token" });
       }
       const accessToken = generateAccessToken(user);
       return res.status(200).json({ accessToken });
-
     } else {
       res.status(400).json({ message: "Invalid Request" });
     }
@@ -505,7 +516,10 @@ const logout = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-    const user = (await AdminModel.findById(decoded.id)) || (await BuyerModel.findById(decoded.id)) || (await SellerModel.findById(decoded.id));
+    const user =
+      (await AdminModel.findById(decoded.id)) ||
+      (await BuyerModel.findById(decoded.id)) ||
+      (await SellerModel.findById(decoded.id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -543,7 +557,8 @@ const forgetPassword = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
-      })) || (await SellerModel.findOne({
+      })) ||
+      (await SellerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
       }));
 
@@ -581,7 +596,8 @@ const verifyOtp = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
-      })) || (await SellerModel.findOne({
+      })) ||
+      (await SellerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
       }));
 
@@ -615,7 +631,8 @@ const changePassword = async (req, res, next) => {
       })) ||
       (await BuyerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
-      })) || (await SellerModel.findOne({
+      })) ||
+      (await SellerModel.findOne({
         $or: [{ email: identifier }, { name: identifier }],
       }));
 
@@ -648,7 +665,10 @@ const HandleUpdateProfile = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const user = (await AdminModel.findById(id)) || (await BuyerModel.findById(id)) || (await SellerModel.findById(id));
+    const user =
+      (await AdminModel.findById(id)) ||
+      (await BuyerModel.findById(id)) ||
+      (await SellerModel.findById(id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -672,7 +692,9 @@ const HandleUpdateProfile = async (req, res, next) => {
           $or: userOrConditions,
         }));
       if (existingUser) {
-        return res.status(400).json({ message: "Username or email already taken" });
+        return res
+          .status(400)
+          .json({ message: "Username or email already taken" });
       }
       user.username = username;
       user.email = email;
@@ -693,10 +715,10 @@ const HandleUpdateProfile = async (req, res, next) => {
         createdAt: user.createdAt,
       };
 
-      return res.status(200).json({ message: "Profile Updated Successfully", user: details });
-
+      return res
+        .status(200)
+        .json({ message: "Profile Updated Successfully", user: details });
     } else if (user.role === "Buyer") {
-
       const clean = (v) =>
         typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 
@@ -731,7 +753,8 @@ const HandleUpdateProfile = async (req, res, next) => {
           (await AdminModel.findOne({
             _id: { $ne: id },
             $or: userOrConditions,
-          })) || (await SellerModel.findOne({
+          })) ||
+          (await SellerModel.findOne({
             _id: { $ne: id },
             $or: userOrConditions,
           }));
@@ -798,7 +821,6 @@ const HandleUpdateProfile = async (req, res, next) => {
         user: details,
       });
     } else if (user.role === "Seller") {
-
       const clean = (v) =>
         typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
 
@@ -829,7 +851,8 @@ const HandleUpdateProfile = async (req, res, next) => {
           (await AdminModel.findOne({
             _id: { $ne: id },
             $or: userOrConditions,
-          })) || (await SellerModel.findOne({
+          })) ||
+          (await SellerModel.findOne({
             _id: { $ne: id },
             $or: userOrConditions,
           }));
@@ -890,8 +913,7 @@ const HandleUpdateProfile = async (req, res, next) => {
         message: "Profile Updated Successfully",
         user: details,
       });
-    }
-    else {
+    } else {
       res.status(400).json({ message: "Invalid Request" });
     }
   } catch (error) {
@@ -905,13 +927,21 @@ const HandleUpdateProfile = async (req, res, next) => {
 const handleGetUserProfile = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const findUser = (await BuyerModel.findById(id).select("-sessions -password -otp -otpExpire")) || (await AdminModel.findById(id).select("-password -otp -otpExpire -refreshToken")) || (await SellerModel.findById(id).select("-password -otp -otpExpire -refreshToken"));
+    const findUser =
+      (await BuyerModel.findById(id).select(
+        "-sessions -password -otp -otpExpire",
+      )) ||
+      (await AdminModel.findById(id).select(
+        "-password -otp -otpExpire -refreshToken",
+      )) ||
+      (await SellerModel.findById(id).select(
+        "-password -otp -otpExpire -refreshToken",
+      ));
     if (!findUser) {
       return res.status(404).json({ message: "User Not Found" });
     }
 
     if (findUser.role === "Buyer") {
-
       const findSubscription = await SubscriptionModel.findOne({
         userId: findUser._id,
       });
@@ -969,7 +999,6 @@ const handleGetUserProfile = async (req, res, next) => {
         subscribedPlan,
       };
       return res.status(200).json({ user: details });
-
     } else if (findUser.role === "Admin") {
       return res.status(200).json({ user: findUser });
     }
@@ -1032,6 +1061,8 @@ const handleGetBuyers = async (req, res, next) => {
           createdAt: 1,
           subscription: 1,
           plan: 1,
+          selectedIncome: 1,
+          creditScore: 1,
         },
       },
     ];
@@ -1163,7 +1194,8 @@ const handleUpdatePassword = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { password, newPass } = req.body;
-    const user = await BuyerModel.findById(id) || await SellerModel.findById(id);
+    const user =
+      (await BuyerModel.findById(id)) || (await SellerModel.findById(id));
     if (!user) {
       return res.status(404).json({ message: "User Not Found" });
     }
@@ -1195,7 +1227,9 @@ const handleUpdateTimezone = async (req, res, next) => {
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    const user = await BuyerModel.findById(decoded.id) || await SellerModel.findById(decoded.id);
+    const user =
+      (await BuyerModel.findById(decoded.id)) ||
+      (await SellerModel.findById(decoded.id));
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -1226,24 +1260,21 @@ const handleDeleteAccount = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid User ID" });
     }
 
-    const user = await BuyerModel.findOneAndDelete(
-      { _id: userId }
-    ) || await SellerModel.findOneAndDelete(
-      { _id: userId }
-    );
+    const user =
+      (await BuyerModel.findOneAndDelete({ _id: userId })) ||
+      (await SellerModel.findOneAndDelete({ _id: userId }));
 
     if (!user) {
-      return res.status(404).json({ message: "User Not Found or Already Deleted" });
+      return res
+        .status(404)
+        .json({ message: "User Not Found or Already Deleted" });
     }
 
-    await SubscriptionModel.deleteMany(
-      { userId: userId }
-    )
+    await SubscriptionModel.deleteMany({ userId: userId });
 
     return res.status(200).json({
       message: "Your account has been deleted successfully",
     });
-
   } catch (error) {
     console.error(error);
     next(error);
@@ -1266,19 +1297,8 @@ export {
   handleGetBuyers,
   handleUpdatePassword,
   handleUpdateTimezone,
-  handleDeleteAccount
+  handleDeleteAccount,
 };
-
-
-
-
-
-
-
-
-
-
-
 
 // const handleRegisterUser = async (req, res, next) => {
 //   try {
@@ -1320,7 +1340,6 @@ export {
 //       password: hashedPassword,
 //     });
 //     await newUser.save();
-
 
 //     const accessToken = generateAccessToken(newUser);
 //     const refreshToken = generateRefreshToken(newUser);
