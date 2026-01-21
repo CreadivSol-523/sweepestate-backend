@@ -15,7 +15,8 @@ import {
   handleRegisterBuyer,
   handleRegisterSeller,
   handleGetBuyers,
-  handleGetSellers
+  handleGetSellers,
+  handleGetSubscriptionDetails
 } from "../controllers/AuthController.js";
 import validate from "../middlewares/ValidationHandler.js";
 import {
@@ -76,5 +77,7 @@ router.patch("/:id/update-password", handleUpdatePassword);
 router.patch("/update-timezone", handleUpdateTimezone);
 
 router.patch("/:userId/delete-account", handleDeleteAccount);
+
+router.get("/:userId/get-subscription", handleGetSubscriptionDetails);
 
 export default router;
