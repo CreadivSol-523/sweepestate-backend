@@ -117,7 +117,7 @@ export const handleCreateSubscription = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const findUser = await UserModel.findById(userId);
+    const findUser = (await UserModel.findById(userId)) || (await SellerModel.findById(userId));
     if (!findUser) {
       return res.status(404).json({ message: "User not found" });
     }
