@@ -1281,6 +1281,42 @@ const handleDeleteAccount = async (req, res, next) => {
   }
 };
 
+
+// GET USER'S PLAN
+// METHOD : GET
+// ENDPOINT: /api/:userId/get-subscription
+const handleGetSubscriptionDetails = async (req, res, next) => {
+  try {
+
+    const { userId } = req.params;
+
+    const findSubscription = await SubscriptionModel.findOne({
+      userId: userId,
+    });
+
+    let subscribedPlan;
+    if (findSubscription) {
+      const findPlan = await PlanModel.findOne({
+        _id: findSubscription.planId,
+      });
+      subscribedPlan = {
+        subscription: findSubscription,
+        plan: findPlan,
+      };
+    } else {
+      subscribedPlan = null;
+    }
+
+    res.status(201).json({
+      subscribedPlan,
+    });
+
+  } catch (error) {
+    console.log(error);
+    next(error)
+  }
+}
+
 export {
   register,
   handleRegisterBuyer,
@@ -1298,6 +1334,7 @@ export {
   handleUpdatePassword,
   handleUpdateTimezone,
   handleDeleteAccount,
+  handleGetSubscriptionDetails
 };
 
 // const handleRegisterUser = async (req, res, next) => {
