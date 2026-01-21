@@ -101,7 +101,7 @@ export const handleGetApartment = async (req, res, next) => {
 
     const search = req.query.search || {};
     const matchStage = SearchQuery(search);
-
+    console.log(search)
     // 🔹 Get property IDs rejected by this buyer
     const rejectedPropertyIds = await MatchModel.distinct("propertyId", {
       "rejectedBy.buyerId": new mongoose.Types.ObjectId(buyerId),
