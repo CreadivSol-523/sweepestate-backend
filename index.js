@@ -12,7 +12,7 @@ import qs from "qs";
 
 // DB Connection
 import connectDB from "./config/DB.js";
-import admin from "./config/firebase.js";
+// import admin from "./config/firebase.js";
 
 // App Connection
 import { createServer } from "http";
