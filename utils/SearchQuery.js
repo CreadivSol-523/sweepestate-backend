@@ -5,23 +5,53 @@ const escapeRegex = string => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
+const isNumeric = v => typeof v === "string" && /^\d+(\.\d+)?$/.test(v);
+
+const isValidDateString = v =>
+  typeof v === "string" &&
+  isNaN(v) &&
+  !/^\d+$/.test(v) &&
+  !isNaN(new Date(v).getTime());
+
 const buildMatchCondition = (key, value) => {
-  // Convert "true"/"false" to Boolean
+  // Boolean
   if (value === "true") return { [key]: true };
   if (value === "false") return { [key]: false };
 
-  // String
-  if (typeof value === "string" && value.trim()) {
-    const safeValue = escapeRegex(value.trim());
-    return { [key]: { $regex: safeValue, $options: "i" } };
+  // ✅ OPERATOR OBJECTS FIRST
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const hasOperator = Object.keys(value).some(k => k.startsWith("$"));
+
+    if (hasOperator) {
+      const normalized = {};
+
+      for (const [op, val] of Object.entries(value)) {
+        if (isNumeric(val)) {
+          normalized[op] = Number(val);
+        } else if (isValidDateString(val)) {
+          normalized[op] = new Date(val);
+        } else {
+          normalized[op] = val;
+        }
+      }
+
+      return { [key]: normalized };
+    }
+
+    return { [key]: { $elemMatch: value } };
   }
 
-  // Number
+  // Arrays
+  if (Array.isArray(value)) {
+    return { [key]: { $in: value } };
+  }
+
+  // Numbers
   if (typeof value === "number") {
     return { [key]: value };
   }
 
-  // Date
+  // Dates
   if (value instanceof Date) {
     return { [key]: value };
   }
@@ -31,29 +61,10 @@ const buildMatchCondition = (key, value) => {
     return { [key]: value };
   }
 
-  // Arrays
-  if (Array.isArray(value)) {
-    return { [key]: { $in: value } };
-  }
-
-  // Objects (operators or elemMatch)
-  if (typeof value === "object" && value !== null) {
-    const hasOperator = Object.keys(value).some(k => k.startsWith("$"));
-    if (hasOperator) {
-      const normalized = {};
-      for (const [op, val] of Object.entries(value)) {
-        let v = val;
-        if (typeof v === "string") {
-          v = v.replace(" ", "+");
-        }
-        const parsed = new Date(v);
-        normalized[op] = isNaN(parsed.getTime()) ? v : parsed;
-      }
-
-      return { [key]: normalized };
-    }
-
-    return { [key]: { $elemMatch: value } };
+  // ✅ STRING REGEX LAST
+  if (typeof value === "string" && value.trim()) {
+    const safeValue = escapeRegex(value.trim());
+    return { [key]: { $regex: safeValue, $options: "i" } };
   }
 
   return null;
