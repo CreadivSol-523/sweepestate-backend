@@ -1,15 +1,34 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-const logDirectory = path.resolve('logs');
+// Use ephemeral /tmp folder for serverless
+const logDirectory = path.resolve("/tmp/logs");
 
-// Ensure logs directory exists
-if (!fs.existsSync(logDirectory)) {
-    fs.mkdirSync(logDirectory);
+let errorLogStream;
+
+try {
+    // Ensure logs directory exists
+    if (!fs.existsSync(logDirectory)) {
+        fs.mkdirSync(logDirectory, { recursive: true });
+    }
+
+    // Create write stream
+    errorLogStream = fs.createWriteStream(
+        path.join(logDirectory, "errors.log"),
+        { flags: "a" }
+    );
+
+    console.log("✅ ErrorLogger initialized successfully");
+} catch (err) {
+    console.error("⚠️ ErrorLogger initialization failed:", err);
+
+    // Fallback dummy logger to avoid crash
+    errorLogStream = {
+        write: () => { },
+    };
 }
 
-const errorLogStream = fs.createWriteStream(path.join(logDirectory, 'errors.log'), { flags: 'a' });
-
+// Middleware function
 const errorLogger = (err, req, res, next) => {
     const log = `
 [${new Date().toISOString()}]
@@ -20,8 +39,14 @@ Stack: ${err.stack}
 
 `;
 
-    errorLogStream.write(log);
-    next(err); // Forward to the next error handler
+    try {
+        errorLogStream.write(log);
+    } catch (writeErr) {
+        console.error("⚠️ Failed to write error log:", writeErr);
+    }
+
+    // Forward to next error handler
+    next(err);
 };
 
 export default errorLogger;
