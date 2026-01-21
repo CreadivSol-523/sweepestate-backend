@@ -1,5 +1,5 @@
 import express from "express"
-import { handleAddApartment, handleGetApartment } from "../controllers/ApartmentController.js";
+import { handleAddApartment, handleGetApartment, handleGetSellerApartments, handleGetSellerSingleApartment } from "../controllers/ApartmentController.js";
 import { CreateUploadMiddleware } from "../middlewares/MulterMiddleware.js";
 
 
@@ -11,5 +11,8 @@ router.post("/create-seller/:sellerId", CreateUploadMiddleware([{ name: "image",
 
 router.get("/:buyerId/property-listing", handleGetApartment)
 
+router.get("/:sellerId/seller-property-listing", handleGetSellerApartments)
+
+router.get("/:sellerId/seller-property/:propertyId", handleGetSellerSingleApartment)
 
 export default router;
