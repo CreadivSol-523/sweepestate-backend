@@ -5,6 +5,7 @@ import BuyerModel from "../models/BuyerSchema.js";
 import MatchModel from "../models/MatchSchema.js";
 import SellerModel from "../models/SellerSchema.js";
 import SearchQuery from "../utils/SearchQuery.js";
+import { v2 as cloudinary } from "cloudinary";
 
 export const handleAddApartment = async (req, res, next) => {
   try {
@@ -28,7 +29,7 @@ export const handleAddApartment = async (req, res, next) => {
       description,
     } = req.body;
 
-    const image = req?.files?.image?.[0];
+    const image = req?.files?.image;
     const featuredImages = req?.files?.featuredImages;
 
     if (!image) {
@@ -47,10 +48,28 @@ export const handleAddApartment = async (req, res, next) => {
         .json({ message: "Atleast 1 featured image is required" });
     }
 
-    const extractImage = ExtractRelativeFilePath(image);
-    const extractFeaturedImage = featuredImages.map((i) =>
-      ExtractRelativeFilePath(i),
-    );
+    // const extractImage = ExtractRelativeFilePath(image);
+    const extractImage = req?.files?.image;
+    const uploadResult = extractImage ? await cloudinary.uploader.upload(extractImage.tempFilePath, {
+      resource_type: 'image',
+    }) : '';
+
+    // const extractFeaturedImage = featuredImages.map((i) =>
+    //   ExtractRelativeFilePath(i),
+    // );
+
+    const extractFeaturedImage = req?.files?.featuredImages;
+    const imageUrls = [];
+
+    if (Array.isArray(extractFeaturedImage)) {
+      for (const image of extractFeaturedImage) {
+        const galleryUploadResult = await cloudinary.uploader.upload(image?.tempFilePath);
+        imageUrls.push(galleryUploadResult.secure_url);
+      }
+    } else if (extractFeaturedImage) {
+      const galleryUploadResult = await cloudinary.uploader.upload(extractFeaturedImage?.tempFilePath);
+      imageUrls.push(galleryUploadResult.secure_url);
+    }
 
     const findSeller = await SellerModel.findById(sellerId);
     if (!findSeller) {
@@ -74,8 +93,8 @@ export const handleAddApartment = async (req, res, next) => {
       availability,
       featured,
       description,
-      image: extractImage,
-      featuredImages: extractFeaturedImage,
+      image: uploadResult.secure_url,
+      featuredImages: imageUrls,
     });
     await createListing.save();
 
