@@ -32,6 +32,8 @@ import WebhookRoutes from "./routes/WebhookRoutes.js";
 
 import { allowedOrigins } from "./utils/AllowedOrigins.js";
 import { handleStripeWebhook } from "./webhooks/StripeSubscriptionWebhook.js";
+import { SwipeDistributor } from "./crons/SwipeDistributor.js";
+
 import path from "path";
 
 dotenv.config();
@@ -121,6 +123,9 @@ app.use(ErrorLogger);
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Health Ok!" });
 });
+
+// Cron 
+SwipeDistributor()
 
 // === Routes ===
 app.use("/api", AuthRoutes);
