@@ -271,8 +271,6 @@ export const handleGetApartment = async (req, res, next) => {
     // 🔹 Apply search if exists
     if (matchStage) pipeline.push(matchStage);
 
-    console.log(matchStage.$match.$and)
-
     // 🔹 Sorting + pagination
     pipeline.push({ $sort: { createdAt: -1 } });
     pipeline.push({ $skip: skip });
