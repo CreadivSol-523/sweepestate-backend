@@ -18,7 +18,7 @@ const SessionSchema = new Schema(
     lastActive: { type: Date, default: Date.now },
     ipAddress: { type: String },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const BuyerSchema = new Schema(
@@ -35,16 +35,20 @@ const BuyerSchema = new Schema(
     },
     phone: {
       type: String,
+      default: "",
     },
     address: {
       type: String,
+      default: "",
     },
     selectedIncome: {
       type: String,
+      default: "",
     },
 
     creditScore: {
       type: String,
+      default: "",
     },
     password: String,
     role: {
@@ -59,16 +63,15 @@ const BuyerSchema = new Schema(
     profilePicture: {
       type: String,
       // required: true
-      default: "/uploads/placeholder-profile-img.png"
+      default: "/uploads/placeholder-profile-img.png",
     },
     otpExpire: {
       type: Date,
     },
-
   },
   {
     timestamps: true,
-  }
+  },
 );
 const BuyerModel = mongoose.model("buyers", BuyerSchema);
 export default BuyerModel;

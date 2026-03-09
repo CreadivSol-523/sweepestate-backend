@@ -18,7 +18,7 @@ const SessionSchema = new Schema(
     lastActive: { type: Date, default: Date.now },
     ipAddress: { type: String },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const SellerSchema = new Schema(
@@ -35,9 +35,11 @@ const SellerSchema = new Schema(
     },
     phone: {
       type: String,
+      default: "",
     },
     address: {
       type: String,
+      default: "",
     },
     password: String,
     role: {
@@ -52,16 +54,15 @@ const SellerSchema = new Schema(
     profilePicture: {
       type: String,
       // required: true
-      default: "/uploads/placeholder-profile-img.png"
+      default: "/uploads/placeholder-profile-img.png",
     },
     otpExpire: {
       type: Date,
     },
-
   },
   {
     timestamps: true,
-  }
+  },
 );
 const SellerModel = mongoose.model("sellers", SellerSchema);
 
