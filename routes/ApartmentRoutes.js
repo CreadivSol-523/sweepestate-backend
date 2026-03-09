@@ -1,17 +1,20 @@
 import express from "express"
-import { handleAddApartment, handleGetApartment, handleGetSellerApartments, handleGetSellerSingleApartment } from "../controllers/ApartmentController.js";
+import { handleAddApartment, handleGetAllApartments, handleGetApartment, handleGetSellerApartments, handleGetSellerSingleApartment, handleUpdateApartment } from "../controllers/ApartmentController.js";
 import { CreateUploadMiddleware } from "../middlewares/MulterMiddleware.js";
 
 
 const router = express.Router();
 
 
-router.post("/create-seller/:sellerId", CreateUploadMiddleware([{ name: "image", isMultiple: false }, { name: "featuredImages", isMultiple: true }]), handleAddApartment)
+router.post("/create-seller/:sellerId", handleAddApartment)
 
+router.patch("/:sellerId/update-property/:propertyId", handleUpdateApartment)
 
 router.get("/:buyerId/property-listing", handleGetApartment)
 
 router.get("/:sellerId/seller-property-listing", handleGetSellerApartments)
+
+router.get("/property-listing", handleGetAllApartments)
 
 router.get("/:sellerId/seller-property/:propertyId", handleGetSellerSingleApartment)
 

@@ -12,7 +12,11 @@ import qs from "qs";
 
 // DB Connection
 import connectDB from "./config/DB.js";
-import admin from "./config/firebase.js";
+// import admin from "./config/firebase.js";
+
+// Cloudinary
+import { v2 as cloudinary } from "cloudinary";
+import fileUpload from "express-fileupload";
 
 // App Connection
 import { createServer } from "http";
@@ -28,8 +32,9 @@ import WebhookRoutes from "./routes/WebhookRoutes.js";
 
 import { allowedOrigins } from "./utils/AllowedOrigins.js";
 import { handleStripeWebhook } from "./webhooks/StripeSubscriptionWebhook.js";
-import path from "path";
+import { SwipeDistributor } from "./crons/SwipeDistributor.js";
 
+import path from "path";
 
 dotenv.config();
 
@@ -73,6 +78,17 @@ app.use(
   })
 );
 
+// Cloudinary Config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  api_key: process.env.CLOUDINARY_API_KEY
+})
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
+
 // === Security Header Middleware ===
 app.use(
   "/uploads",
@@ -107,6 +123,9 @@ app.use(ErrorLogger);
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Health Ok!" });
 });
+
+// Cron 
+SwipeDistributor()
 
 // === Routes ===
 app.use("/api", AuthRoutes);
