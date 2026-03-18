@@ -17,6 +17,8 @@ import ExtractRelativeFilePath from "../middlewares/ExtractRelativePath.js";
 import expressAsyncHandler from "express-async-handler";
 import SellerModel from "../models/SellerSchema.js";
 import { v2 as cloudinary } from "cloudinary";
+import ApartmentModel from "../models/ApartmentSchema.js";
+import MatchModel from "../models/MatchSchema.js";
 
 // REGISTER
 // METHOD : POST
@@ -1288,6 +1290,14 @@ const handleDeleteAccount = async (req, res, next) => {
     }
 
     await SubscriptionModel.deleteMany({ userId: userId });
+    await ApartmentModel.deleteMany({ sellerId: userId });
+    await MatchModel.deleteMany({
+      $or: [
+        { matchAcceptedBy: userId },
+        { matchLikedBy: userId },
+        { rejectedBy: userId }
+      ]
+    });
 
     return res.status(200).json({
       message: "Your account has been deleted successfully",
@@ -1333,6 +1343,7 @@ const handleGetSubscriptionDetails = async (req, res, next) => {
     next(error)
   }
 }
+
 
 export {
   register,
