@@ -77,4 +77,5 @@ router.patch("/:userId/delete-account", handleDeleteAccount);
 
 router.get("/:userId/get-subscription", handleGetSubscriptionDetails);
 
+
 export default router;
