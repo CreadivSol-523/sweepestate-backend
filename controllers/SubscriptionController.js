@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import SubscriptionModel from "../models/SubscriptionSchema.js";
 import UserModel from "../models/BuyerSchema.js";
+SellerModel
 import PlanModel from "../models/PlanScheme.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -348,6 +349,7 @@ export const HandleGetPaymentIntent = async (req, res) => {
 
 // APPLE STOREKIT VERSIONS 
 import axios from "axios";
+import SellerModel from "../models/SellerSchema.js";
 
 export const handleCreateSubscription = async (req, res) => {
   try {
